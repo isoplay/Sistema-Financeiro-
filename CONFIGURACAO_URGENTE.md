@@ -57,21 +57,6 @@ Após executar o schema SQL, tente criar conta com:
 
 ## 🧪 Como Testar Após Configuração
 
-```bash
-# 1. Acesse o app
-open https://budgetpwa-2.preview.emergentagent.com
-
-# 2. Crie uma conta de teste
-# - Email: seu_email@gmail.com
-# - Senha: SenhaForte123
-# - Nome: Usuario Teste
-
-# 3. Se houver verificação de email:
-# - Verifique sua caixa de entrada
-# - Clique no link de confirmação
-
-# 4. Faça login e teste as funcionalidades
-```
 
 ## 📊 Checklist de Validação
 
