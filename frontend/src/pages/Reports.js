@@ -2,16 +2,17 @@ import { useEffect, useState } from 'react';
 import { useFinanceStore } from '../stores/financeStore';
 import { useAuthStore } from '../stores/authStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { TrendingUp, Calendar } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
+import { TrendingUp, Calendar, BarChart3 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export default function Reports() {
-  const { transactions, fetchTransactions } = useFinanceStore();
+  const { transactions, categories, fetchTransactions, fetchCategories } = useFinanceStore();
   const { getToken } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [monthlyData, setMonthlyData] = useState([]);
+  const [categoryData, setCategoryData] = useState([]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -19,6 +20,7 @@ export default function Reports() {
         const token = await getToken();
         const startDate = format(subMonths(new Date(), 5), 'yyyy-MM-dd');
         await fetchTransactions(token, { limit: 500, start_date: startDate });
+        await fetchCategories(token);
       } catch (error) {
         console.error('Error loading reports:', error);
       } finally {
@@ -57,7 +59,21 @@ export default function Reports() {
       });
     }
     setMonthlyData(monthsData);
-  }, [transactions]);
+
+    // Calculate category distribution for expenses
+    const expenseCategories = categories.filter(c => c.tx_type === 'expense');
+    const categoryStats = expenseCategories.map(cat => {
+      const total = transactions
+        .filter(t => t.category_id === cat.id && t.tx_type === 'expense')
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      return {
+        name: cat.name,
+        value: total,
+        color: cat.color,
+      };
+    }).filter(item => item.value > 0);
+    setCategoryData(categoryStats);
+  }, [transactions, categories]);
 
   const totalIncome = monthlyData.reduce((sum, m) => sum + m.income, 0);
   const totalExpenses = monthlyData.reduce((sum, m) => sum + m.expenses, 0);
@@ -125,42 +141,89 @@ export default function Reports() {
           </Card>
         </div>
 
-        {/* Monthly Chart */}
-        <Card className="bg-slate-800/50 border-slate-700" data-testid="monthly-chart-card">
-          <CardHeader>
-            <CardTitle className="text-white">Evolução Mensal (6 meses)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {monthlyData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="month" stroke="#94a3b8" />
-                  <YAxis stroke="#94a3b8" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
-                      borderRadius: '8px',
-                      color: '#fff',
-                    }}
-                    formatter={(value) => `R$ ${value.toFixed(2)}`}
-                  />
-                  <Legend />
-                  <Bar dataKey="income" name="Receitas" fill="#10b981" radius={[8, 8, 0, 0]} />
-                  <Bar dataKey="expenses" name="Despesas" fill="#ef4444" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex items-center justify-center h-96 text-slate-500">
-                Nenhum dado para exibir
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Charts Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Category Donut Chart */}
+          <Card className="bg-slate-800/50 border-slate-700" data-testid="category-donut-chart">
+            <CardHeader>
+              <CardTitle className="text-white">Distribuição de Despesas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {categoryData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={categoryData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={(entry) => `${entry.name}: ${((entry.value / totalExpenses) * 100).toFixed(0)}%`}
+                    >
+                      {categoryData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#1e293b',
+                        border: '1px solid #334155',
+                        borderRadius: '8px',
+                        color: '#fff',
+                      }}
+                      formatter={(value) => `R$ ${value.toFixed(2)}`}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-[300px] text-slate-500">
+                  <BarChart3 className="w-24 h-24 mb-4 opacity-20" />
+                  <p>Nenhum dado para exibir</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Monthly Bar Chart */}
+          <Card className="bg-slate-800/50 border-slate-700" data-testid="monthly-chart-card">
+            <CardHeader>
+              <CardTitle className="text-white">Evolução Mensal</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {monthlyData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={monthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="month" stroke="#94a3b8" />
+                    <YAxis stroke="#94a3b8" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#1e293b',
+                        border: '1px solid #334155',
+                        borderRadius: '8px',
+                        color: '#fff',
+                      }}
+                      formatter={(value) => `R$ ${value.toFixed(2)}`}
+                    />
+                    <Legend />
+                    <Bar dataKey="income" name="Receitas" fill="#10b981" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="expenses" name="Despesas" fill="#ef4444" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-[300px] text-slate-500">
+                  <BarChart3 className="w-24 h-24 mb-4 opacity-20" />
+                  <p>Nenhum dado para exibir</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Monthly Details Table */}
-        <Card className="mt-6 bg-slate-800/50 border-slate-700" data-testid="monthly-details-card">
+        <Card className="bg-slate-800/50 border-slate-700" data-testid="monthly-details-card">
           <CardHeader>
             <CardTitle className="text-white">Detalhes Mensais</CardTitle>
           </CardHeader>

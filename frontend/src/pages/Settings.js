@@ -2,7 +2,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useFinanceStore } from '../stores/financeStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { LogOut, User, Download, Moon, Sun, Wifi, WifiOff } from 'lucide-react';
+import { LogOut, User, Download, Moon, Sun, Wifi, WifiOff, Copy } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { processSyncQueue } from '../lib/db';
@@ -33,6 +33,13 @@ export default function Settings() {
       toast.success('Logout realizado com sucesso!');
     } catch (error) {
       toast.error('Erro ao fazer logout');
+    }
+  };
+
+  const handleCopyId = () => {
+    if (user?.id) {
+      navigator.clipboard.writeText(user.id);
+      toast.success('ID copiado para área de transferência!');
     }
   };
 
@@ -110,8 +117,18 @@ export default function Settings() {
                 <p className="text-white font-medium" data-testid="user-email">{user?.email}</p>
               </div>
               <div>
-                <p className="text-sm text-slate-400">ID do Usuário</p>
-                <p className="text-white font-mono text-xs" data-testid="user-id">{user?.id}</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-slate-400">ID do Usuário</p>
+                  <Button
+                    data-testid="copy-user-id-button"
+                    onClick={handleCopyId}
+                    variant="ghost"
+                    size="sm"
+                    className="text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -173,7 +190,7 @@ export default function Settings() {
                 data-testid="sync-button"
                 onClick={handleSync}
                 disabled={!isOnline || syncing}
-                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white"
+                className="w-auto bg-emerald-500 hover:bg-emerald-600 text-white"
               >
                 {syncing ? 'Sincronizando...' : 'Sincronizar Agora'}
               </Button>
@@ -197,7 +214,7 @@ export default function Settings() {
               data-testid="export-button"
               onClick={handleExport}
               variant="outline"
-              className="w-full bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
+              className="w-auto bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
             >
               <Download className="w-4 h-4 mr-2" />
               Exportar CSV

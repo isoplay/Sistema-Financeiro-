@@ -3,7 +3,7 @@ import { useFinanceStore } from '../stores/financeStore';
 import { useAuthStore } from '../stores/authStore';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Plus, Trash2, Search } from 'lucide-react';
+import { Plus, Trash2, Search, Receipt } from 'lucide-react';
 import TransactionForm from '../components/TransactionForm';
 import CategoryBadge from '../components/CategoryBadge';
 import { Input } from '../components/ui/input';
@@ -141,6 +141,7 @@ export default function Transactions() {
           {filteredTransactions.length === 0 && (
             <Card className="bg-slate-800/50 border-slate-700">
               <CardContent className="flex flex-col items-center justify-center py-16">
+                <Receipt className="w-24 h-24 mb-4 opacity-20 text-slate-500" />
                 <p className="text-slate-400 mb-4">
                   {searchTerm ? 'Nenhuma transação encontrada' : 'Nenhuma transação registrada'}
                 </p>

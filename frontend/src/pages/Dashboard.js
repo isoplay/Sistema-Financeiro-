@@ -3,7 +3,7 @@ import { useFinanceStore } from '../stores/financeStore';
 import { useAuthStore } from '../stores/authStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { TrendingUp, TrendingDown, Wallet, Plus, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Plus, ArrowUpCircle, ArrowDownCircle, Receipt } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import TransactionForm from '../components/TransactionForm';
 import CategoryBadge from '../components/CategoryBadge';
@@ -172,8 +172,9 @@ export default function Dashboard() {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-64 text-slate-500">
-                  Nenhuma despesa registrada
+                <div className="flex flex-col items-center justify-center h-64 text-slate-500">
+                  <Receipt className="w-24 h-24 mb-4 opacity-20" />
+                  <p>Nenhuma despesa registrada</p>
                 </div>
               )}
             </CardContent>
@@ -217,7 +218,8 @@ export default function Dashboard() {
                 })}
                 {transactions.length === 0 && (
                   <div className="flex flex-col items-center justify-center h-64 text-slate-500">
-                    <p>Nenhuma transação ainda</p>
+                    <Wallet className="w-24 h-24 mb-4 opacity-20" />
+                    <p className="mb-2">Nenhuma transação ainda</p>
                     <Button
                       onClick={() => setShowTransactionForm(true)}
                       className="mt-4 bg-emerald-500 hover:bg-emerald-600 text-white"
