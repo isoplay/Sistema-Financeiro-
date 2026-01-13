@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import axios from 'axios';
 import { db, queueOperation } from '../lib/db';
+import { config } from '../config';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = config.backendUrl;
 
 const getAuthHeader = (token) => ({
   headers: { Authorization: `Bearer ${token}` },
