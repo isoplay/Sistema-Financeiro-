@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { processSyncQueue } from '../lib/db';
 import axios from 'axios';
+import { config } from '../config';
 
 export default function Settings() {
   const { user, signOut, getToken } = useAuthStore();
