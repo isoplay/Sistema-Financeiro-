@@ -10,7 +10,6 @@ import Transactions from './pages/Transactions';
 import Budgets from './pages/Budgets';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
-import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 import './App.css';
 
 function ProtectedRoute({ children }) {
