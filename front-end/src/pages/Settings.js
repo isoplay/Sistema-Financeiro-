@@ -47,7 +47,7 @@ export default function Settings() {
   const handleExport = async () => {
     try {
       const token = await getToken();
-      const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+      const API = config.backendUrl;
       
       const { data: transactions } = await axios.get(`${API}/transactions?limit=1000`, {
         headers: { Authorization: `Bearer ${token}` },
