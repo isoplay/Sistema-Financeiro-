@@ -1,5 +1,7 @@
 /* eslint-disable no-restricted-globals */
-// Service Worker minimalista - Network Only
-self.addEventListener('install', (e) => self.skipWaiting());
-self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
-self.addEventListener('fetch', () => {});
+const CACHE_NAME = 'financeiro-app-v1';
+self.addEventListener('install', (event) => self.skipWaiting());
+self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+self.addEventListener('fetch', (event) => {
+  // Network-only strategy (sem cache complexo para evitar erros de build)
+});
