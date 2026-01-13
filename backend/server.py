@@ -2,9 +2,9 @@ from fastapi import FastAPI, APIRouter, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from supabase import create_client, Client
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel
 from typing import List, Optional
-from datetime import datetime, date
+from datetime import datetime, timedelta
 import os
 import logging
 from pathlib import Path
@@ -25,12 +25,6 @@ logger = logging.getLogger(__name__)
 
 # ============ MODELS ============
 
-class UserProfile(BaseModel):
-    id: str
-    email: str
-    name: Optional[str] = None
-    currency_preference: str = 'BRL'
-
 class AccountCreate(BaseModel):
     name: str
     account_type: str
@@ -48,21 +42,6 @@ class Account(BaseModel):
     color: Optional[str]
     created_at: str
 
-class CategoryCreate(BaseModel):
-    name: str
-    icon: Optional[str] = 'circle'
-    color: Optional[str] = '#64748b'
-    tx_type: str
-
-class Category(BaseModel):
-    id: str
-    user_id: str
-    name: str
-    icon: Optional[str]
-    color: Optional[str]
-    tx_type: str
-    is_default: bool
-
 class TransactionCreate(BaseModel):
     account_id: str
     category_id: Optional[str] = None
@@ -71,6 +50,8 @@ class TransactionCreate(BaseModel):
     description: Optional[str] = None
     tx_type: str
     is_recurring: bool = False
+    attachment_url: Optional[str] = None
+    tags: Optional[List[str]] = []
 
 class Transaction(BaseModel):
     id: str
@@ -82,6 +63,8 @@ class Transaction(BaseModel):
     description: Optional[str]
     tx_type: str
     is_recurring: bool
+    attachment_url: Optional[str]
+    tags: Optional[List[str]]
     created_at: str
 
 class BudgetCreate(BaseModel):
@@ -99,11 +82,49 @@ class Budget(BaseModel):
     period_year: int
     spent_amount: float
 
-# ============ AUTH DEPENDENCY ============
+class GoalCreate(BaseModel):
+    name: str
+    target_amount: float
+    current_amount: float = 0
+    deadline: Optional[str] = None
+    icon: Optional[str] = 'target'
+
+class Goal(BaseModel):
+    id: str
+    user_id: str
+    name: str
+    target_amount: float
+    current_amount: float
+    deadline: Optional[str]
+    icon: Optional[str]
+    created_at: str
+
+class RecurringCreate(BaseModel):
+    description: str
+    amount: float
+    tx_type: str
+    category_id: Optional[str] = None
+    account_id: Optional[str] = None
+    day_of_month: int
+    active: bool = True
+
+class Recurring(BaseModel):
+    id: str
+    user_id: str
+    description: str
+    amount: float
+    tx_type: str
+    category_id: Optional[str]
+    account_id: Optional[str]
+    day_of_month: int
+    active: bool
+    created_at: str
+
+# ============ AUTH ============
 
 async def get_current_user(authorization: str = Header(None)):
     if not authorization or not authorization.startswith('Bearer '):
-        raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+        raise HTTPException(status_code=401, detail="Token inválido")
     
     token = authorization.replace('Bearer ', '')
     
@@ -111,14 +132,14 @@ async def get_current_user(authorization: str = Header(None)):
         user = supabase.auth.get_user(token)
         return user.user.id
     except Exception as e:
-        logger.error(f"Auth error: {str(e)}")
-        raise HTTPException(status_code=401, detail="Invalid token")
+        logger.error(f"Erro de autenticação: {str(e)}")
+        raise HTTPException(status_code=401, detail="Token inválido")
 
 # ============ ROUTES ============
 
 @api_router.get("/")
 async def root():
-    return {"message": "Personal Finance Manager API", "status": "online"}
+    return {"message": "Finance App V2.0 API", "status": "online"}
 
 # --- ACCOUNTS ---
 
@@ -128,7 +149,7 @@ async def get_accounts(user_id: str = Depends(get_current_user)):
         response = supabase.table('accounts').select('*').eq('user_id', user_id).execute()
         return response.data
     except Exception as e:
-        logger.error(f"Error fetching accounts: {str(e)}")
+        logger.error(f"Erro ao buscar contas: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/accounts", response_model=Account)
@@ -139,7 +160,7 @@ async def create_account(account: AccountCreate, user_id: str = Depends(get_curr
         response = supabase.table('accounts').insert(data).execute()
         return response.data[0]
     except Exception as e:
-        logger.error(f"Error creating account: {str(e)}")
+        logger.error(f"Erro ao criar conta: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.put("/accounts/{account_id}", response_model=Account)
@@ -148,44 +169,32 @@ async def update_account(account_id: str, account: AccountCreate, user_id: str =
         data = account.model_dump()
         response = supabase.table('accounts').update(data).eq('id', account_id).eq('user_id', user_id).execute()
         if not response.data:
-            raise HTTPException(status_code=404, detail="Account not found")
+            raise HTTPException(status_code=404, detail="Conta não encontrada")
         return response.data[0]
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error updating account: {str(e)}")
+        logger.error(f"Erro ao atualizar conta: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.delete("/accounts/{account_id}")
 async def delete_account(account_id: str, user_id: str = Depends(get_current_user)):
     try:
-        response = supabase.table('accounts').delete().eq('id', account_id).eq('user_id', user_id).execute()
-        return {"message": "Account deleted successfully"}
+        supabase.table('accounts').delete().eq('id', account_id).eq('user_id', user_id).execute()
+        return {"message": "Conta deletada"}
     except Exception as e:
-        logger.error(f"Error deleting account: {str(e)}")
+        logger.error(f"Erro ao deletar conta: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # --- CATEGORIES ---
 
-@api_router.get("/categories", response_model=List[Category])
+@api_router.get("/categories")
 async def get_categories(user_id: str = Depends(get_current_user)):
     try:
         response = supabase.table('categories').select('*').eq('user_id', user_id).execute()
         return response.data
     except Exception as e:
-        logger.error(f"Error fetching categories: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@api_router.post("/categories", response_model=Category)
-async def create_category(category: CategoryCreate, user_id: str = Depends(get_current_user)):
-    try:
-        data = category.model_dump()
-        data['user_id'] = user_id
-        data['is_default'] = False
-        response = supabase.table('categories').insert(data).execute()
-        return response.data[0]
-    except Exception as e:
-        logger.error(f"Error creating category: {str(e)}")
+        logger.error(f"Erro ao buscar categorias: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # --- TRANSACTIONS ---
@@ -196,6 +205,8 @@ async def get_transactions(
     offset: int = 0,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    account_id: Optional[str] = None,
+    search: Optional[str] = None,
     user_id: str = Depends(get_current_user)
 ):
     try:
@@ -205,11 +216,23 @@ async def get_transactions(
             query = query.gte('tx_date', start_date)
         if end_date:
             query = query.lte('tx_date', end_date)
+        if account_id:
+            query = query.eq('account_id', account_id)
         
         response = query.order('tx_date', desc=True).range(offset, offset + limit - 1).execute()
-        return response.data
+        
+        transactions = response.data
+        if search and transactions:
+            search_lower = search.lower()
+            transactions = [
+                t for t in transactions 
+                if (t.get('description') and search_lower in t['description'].lower()) or
+                   (t.get('tags') and any(search_lower in tag.lower() for tag in t.get('tags', [])))
+            ]
+        
+        return transactions
     except Exception as e:
-        logger.error(f"Error fetching transactions: {str(e)}")
+        logger.error(f"Erro ao buscar transações: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/transactions", response_model=Transaction)
@@ -220,7 +243,7 @@ async def create_transaction(transaction: TransactionCreate, user_id: str = Depe
         response = supabase.table('transactions').insert(data).execute()
         return response.data[0]
     except Exception as e:
-        logger.error(f"Error creating transaction: {str(e)}")
+        logger.error(f"Erro ao criar transação: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.put("/transactions/{transaction_id}", response_model=Transaction)
@@ -229,21 +252,21 @@ async def update_transaction(transaction_id: str, transaction: TransactionCreate
         data = transaction.model_dump()
         response = supabase.table('transactions').update(data).eq('id', transaction_id).eq('user_id', user_id).execute()
         if not response.data:
-            raise HTTPException(status_code=404, detail="Transaction not found")
+            raise HTTPException(status_code=404, detail="Transação não encontrada")
         return response.data[0]
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error updating transaction: {str(e)}")
+        logger.error(f"Erro ao atualizar transação: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.delete("/transactions/{transaction_id}")
 async def delete_transaction(transaction_id: str, user_id: str = Depends(get_current_user)):
     try:
-        response = supabase.table('transactions').delete().eq('id', transaction_id).eq('user_id', user_id).execute()
-        return {"message": "Transaction deleted successfully"}
+        supabase.table('transactions').delete().eq('id', transaction_id).eq('user_id', user_id).execute()
+        return {"message": "Transação deletada"}
     except Exception as e:
-        logger.error(f"Error deleting transaction: {str(e)}")
+        logger.error(f"Erro ao deletar transação: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # --- BUDGETS ---
@@ -254,7 +277,7 @@ async def get_budgets(user_id: str = Depends(get_current_user)):
         response = supabase.table('budgets').select('*').eq('user_id', user_id).execute()
         return response.data
     except Exception as e:
-        logger.error(f"Error fetching budgets: {str(e)}")
+        logger.error(f"Erro ao buscar orçamentos: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/budgets", response_model=Budget)
@@ -266,7 +289,7 @@ async def create_budget(budget: BudgetCreate, user_id: str = Depends(get_current
         response = supabase.table('budgets').insert(data).execute()
         return response.data[0]
     except Exception as e:
-        logger.error(f"Error creating budget: {str(e)}")
+        logger.error(f"Erro ao criar orçamento: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.put("/budgets/{budget_id}", response_model=Budget)
@@ -275,49 +298,163 @@ async def update_budget(budget_id: str, budget: BudgetCreate, user_id: str = Dep
         data = budget.model_dump()
         response = supabase.table('budgets').update(data).eq('id', budget_id).eq('user_id', user_id).execute()
         if not response.data:
-            raise HTTPException(status_code=404, detail="Budget not found")
+            raise HTTPException(status_code=404, detail="Orçamento não encontrado")
         return response.data[0]
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error updating budget: {str(e)}")
+        logger.error(f"Erro ao atualizar orçamento: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.delete("/budgets/{budget_id}")
 async def delete_budget(budget_id: str, user_id: str = Depends(get_current_user)):
     try:
-        response = supabase.table('budgets').delete().eq('id', budget_id).eq('user_id', user_id).execute()
-        return {"message": "Budget deleted successfully"}
+        supabase.table('budgets').delete().eq('id', budget_id).eq('user_id', user_id).execute()
+        return {"message": "Orçamento deletado"}
     except Exception as e:
-        logger.error(f"Error deleting budget: {str(e)}")
+        logger.error(f"Erro ao deletar orçamento: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# --- STATS & REPORTS ---
+# --- GOALS ---
+
+@api_router.get("/goals", response_model=List[Goal])
+async def get_goals(user_id: str = Depends(get_current_user)):
+    try:
+        response = supabase.table('goals').select('*').eq('user_id', user_id).execute()
+        return response.data
+    except Exception as e:
+        logger.error(f"Erro ao buscar metas: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/goals", response_model=Goal)
+async def create_goal(goal: GoalCreate, user_id: str = Depends(get_current_user)):
+    try:
+        data = goal.model_dump()
+        data['user_id'] = user_id
+        response = supabase.table('goals').insert(data).execute()
+        return response.data[0]
+    except Exception as e:
+        logger.error(f"Erro ao criar meta: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.put("/goals/{goal_id}", response_model=Goal)
+async def update_goal(goal_id: str, goal: GoalCreate, user_id: str = Depends(get_current_user)):
+    try:
+        data = goal.model_dump()
+        response = supabase.table('goals').update(data).eq('id', goal_id).eq('user_id', user_id).execute()
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Meta não encontrada")
+        return response.data[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao atualizar meta: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.delete("/goals/{goal_id}")
+async def delete_goal(goal_id: str, user_id: str = Depends(get_current_user)):
+    try:
+        supabase.table('goals').delete().eq('id', goal_id).eq('user_id', user_id).execute()
+        return {"message": "Meta deletada"}
+    except Exception as e:
+        logger.error(f"Erro ao deletar meta: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- RECURRING TRANSACTIONS ---
+
+@api_router.get("/recurring", response_model=List[Recurring])
+async def get_recurring(user_id: str = Depends(get_current_user)):
+    try:
+        response = supabase.table('recurring_transactions').select('*').eq('user_id', user_id).execute()
+        return response.data
+    except Exception as e:
+        logger.error(f"Erro ao buscar recorrentes: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/recurring", response_model=Recurring)
+async def create_recurring(recurring: RecurringCreate, user_id: str = Depends(get_current_user)):
+    try:
+        data = recurring.model_dump()
+        data['user_id'] = user_id
+        response = supabase.table('recurring_transactions').insert(data).execute()
+        return response.data[0]
+    except Exception as e:
+        logger.error(f"Erro ao criar recorrente: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.put("/recurring/{recurring_id}", response_model=Recurring)
+async def update_recurring(recurring_id: str, recurring: RecurringCreate, user_id: str = Depends(get_current_user)):
+    try:
+        data = recurring.model_dump()
+        response = supabase.table('recurring_transactions').update(data).eq('id', recurring_id).eq('user_id', user_id).execute()
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Recorrente não encontrado")
+        return response.data[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao atualizar recorrente: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.delete("/recurring/{recurring_id}")
+async def delete_recurring(recurring_id: str, user_id: str = Depends(get_current_user)):
+    try:
+        supabase.table('recurring_transactions').delete().eq('id', recurring_id).eq('user_id', user_id).execute()
+        return {"message": "Recorrente deletado"}
+    except Exception as e:
+        logger.error(f"Erro ao deletar recorrente: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- DASHBOARD & STATS ---
 
 @api_router.get("/stats/summary")
-async def get_summary(user_id: str = Depends(get_current_user)):
+async def get_summary(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    user_id: str = Depends(get_current_user)
+):
     try:
-        # Get total balance from all accounts
         accounts_response = supabase.table('accounts').select('balance').eq('user_id', user_id).execute()
         total_balance = sum(acc['balance'] for acc in accounts_response.data)
         
-        # Get current month transactions
-        from datetime import datetime
-        current_month = datetime.now().strftime('%Y-%m')
+        if not start_date or not end_date:
+            current_month = datetime.now().strftime('%Y-%m')
+            start_date = f'{current_month}-01'
+            end_date = datetime.now().strftime('%Y-%m-%d')
         
-        transactions_response = supabase.table('transactions').select('amount, tx_type').eq('user_id', user_id).gte('tx_date', f'{current_month}-01').execute()
+        transactions_response = supabase.table('transactions').select('amount, tx_type, tx_date').eq('user_id', user_id).gte('tx_date', start_date).lte('tx_date', end_date).execute()
         
         total_income = sum(t['amount'] for t in transactions_response.data if t['tx_type'] == 'income')
         total_expenses = sum(t['amount'] for t in transactions_response.data if t['tx_type'] == 'expense')
+        
+        # Calcular periodo anterior para comparacao
+        start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+        end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+        period_days = (end_dt - start_dt).days
+        
+        prev_start = (start_dt - timedelta(days=period_days)).strftime('%Y-%m-%d')
+        prev_end = start_dt.strftime('%Y-%m-%d')
+        
+        prev_transactions = supabase.table('transactions').select('amount, tx_type').eq('user_id', user_id).gte('tx_date', prev_start).lt('tx_date', prev_end).execute()
+        
+        prev_income = sum(t['amount'] for t in prev_transactions.data if t['tx_type'] == 'income')
+        prev_expenses = sum(t['amount'] for t in prev_transactions.data if t['tx_type'] == 'expense')
+        
+        income_change = ((total_income - prev_income) / prev_income * 100) if prev_income > 0 else 0
+        expense_change = ((total_expenses - prev_expenses) / prev_expenses * 100) if prev_expenses > 0 else 0
+        balance_change = ((total_income - total_expenses) - (prev_income - prev_expenses)) / abs(prev_income - prev_expenses) * 100 if abs(prev_income - prev_expenses) > 0 else 0
         
         return {
             "total_balance": total_balance,
             "monthly_income": total_income,
             "monthly_expenses": total_expenses,
-            "monthly_savings": total_income - total_expenses
+            "monthly_savings": total_income - total_expenses,
+            "income_change_percent": round(income_change, 1),
+            "expense_change_percent": round(expense_change, 1),
+            "balance_change_percent": round(balance_change, 1),
         }
     except Exception as e:
-        logger.error(f"Error fetching summary: {str(e)}")
+        logger.error(f"Erro ao buscar resumo: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.get("/stats/by-category")
@@ -353,7 +490,7 @@ async def get_stats_by_category(
         
         return list(stats.values())
     except Exception as e:
-        logger.error(f"Error fetching category stats: {str(e)}")
+        logger.error(f"Erro ao buscar stats por categoria: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 app.include_router(api_router)
