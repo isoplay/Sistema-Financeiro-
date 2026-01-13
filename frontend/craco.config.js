@@ -1,4 +1,3 @@
-const { InjectManifest } = require('workbox-webpack-plugin');
 const path = require('path');
 
 module.exports = {
@@ -6,14 +5,22 @@ module.exports = {
     alias: {
       '@': path.resolve(__dirname, 'src'),
     },
-    plugins: {
-      add: [
-        new InjectManifest({
-          swSrc: './src/service-worker.js',
-          swDest: 'service-worker.js',
-          maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
-        }),
-      ],
+    configure: (webpackConfig) => {
+      // Configuração para copiar service-worker.js para a build
+      const CopyPlugin = require('copy-webpack-plugin');
+      
+      webpackConfig.plugins.push(
+        new CopyPlugin({
+          patterns: [
+            {
+              from: path.resolve(__dirname, 'src/service-worker.js'),
+              to: path.resolve(__dirname, 'build'),
+            },
+          ],
+        })
+      );
+      
+      return webpackConfig;
     },
   },
 };

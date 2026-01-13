@@ -2,12 +2,14 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import { Toaster } from './components/ui/sonner';
+import OfflineNotice from './components/OfflineNotice';
 import AuthForm from './components/AuthForm';
 import BottomNav from './components/BottomNav';
 import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 import './App.css';
 
 function ProtectedRoute({ children }) {
@@ -30,14 +32,16 @@ function App() {
   useEffect(() => {
     initialize();
     
-    // Register service worker
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js')
-          .then(reg => console.log('Service Worker registered:', reg))
-          .catch(err => console.error('Service Worker registration failed:', err));
-      });
-    }
+    // Registrar service worker
+    serviceWorkerRegistration.register({
+      onSuccess: () => console.log('Service Worker registered successfully'),
+      onUpdate: (registration) => {
+        console.log('New service worker available');
+        if (registration && registration.waiting) {
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+      },
+    });
   }, []);
 
   if (loading) {
@@ -50,6 +54,7 @@ function App() {
 
   return (
     <div className="App min-h-screen bg-slate-950">
+      <OfflineNotice />
       <BrowserRouter>
         <Toaster position="top-center" richColors />
         
