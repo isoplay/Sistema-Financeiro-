@@ -1,4 +1,4 @@
-import { LayoutDashboard, ArrowLeftRight, BarChart3, Settings } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, BarChart3, Settings, TrendingDown } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 export default function BottomNav() {
@@ -8,13 +8,13 @@ export default function BottomNav() {
   const navItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Início' },
     { path: '/transactions', icon: ArrowLeftRight, label: 'Transações' },
+    { path: '/budgets', icon: TrendingDown, label: 'Orçamentos' },
     { path: '/reports', icon: BarChart3, label: 'Relatórios' },
     { path: '/settings', icon: Settings, label: 'Ajustes' },
   ];
 
   return (
     <>
-      {/* Mobile Bottom Navigation */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 z-50" data-testid="bottom-nav">
         <div className="flex justify-around items-center h-16 px-2">
           {navItems.map((item) => {
@@ -37,7 +37,6 @@ export default function BottomNav() {
         </div>
       </nav>
 
-      {/* Desktop Sidebar */}
       <aside className="hidden lg:block fixed left-0 top-0 h-screen w-64 bg-slate-900/95 backdrop-blur-md border-r border-slate-800 z-40" data-testid="sidebar">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-8">

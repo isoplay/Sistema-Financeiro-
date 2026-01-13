@@ -7,6 +7,7 @@ import AuthForm from './components/AuthForm';
 import BottomNav from './components/BottomNav';
 import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
+import Budgets from './pages/Budgets';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import * as serviceWorkerRegistration from './serviceWorkerRegistration';
@@ -32,11 +33,10 @@ function App() {
   useEffect(() => {
     initialize();
     
-    // Registrar service worker
     serviceWorkerRegistration.register({
-      onSuccess: () => console.log('Service Worker registered successfully'),
+      onSuccess: () => console.log('Service Worker registrado com sucesso'),
       onUpdate: (registration) => {
-        console.log('New service worker available');
+        console.log('Nova versão do service worker disponível');
         if (registration && registration.waiting) {
           registration.waiting.postMessage({ type: 'SKIP_WAITING' });
         }
@@ -70,6 +70,11 @@ function App() {
               <Route path="/transactions" element={
                 <ProtectedRoute>
                   <Transactions />
+                </ProtectedRoute>
+              } />
+              <Route path="/budgets" element={
+                <ProtectedRoute>
+                  <Budgets />
                 </ProtectedRoute>
               } />
               <Route path="/reports" element={

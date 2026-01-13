@@ -20,7 +20,6 @@ export const useFinanceStore = create((set, get) => ({
 
   setOnlineStatus: (status) => set({ isOnline: status }),
 
-  // ACCOUNTS
   fetchAccounts: async (token) => {
     set({ loading: true });
     try {
@@ -29,7 +28,7 @@ export const useFinanceStore = create((set, get) => ({
       await db.accounts.clear();
       await db.accounts.bulkAdd(data.map(a => ({ ...a, syncStatus: 'synced' })));
     } catch (error) {
-      console.error('Fetch accounts error:', error);
+      console.error('Erro ao buscar contas:', error);
       const localAccounts = await db.accounts.toArray();
       set({ accounts: localAccounts, loading: false, error: error.message });
     }
@@ -49,12 +48,11 @@ export const useFinanceStore = create((set, get) => ({
         return tempAccount;
       }
     } catch (error) {
-      console.error('Create account error:', error);
+      console.error('Erro ao criar conta:', error);
       throw error;
     }
   },
 
-  // CATEGORIES
   fetchCategories: async (token) => {
     try {
       const { data } = await axios.get(`${API}/categories`, getAuthHeader(token));
@@ -62,13 +60,12 @@ export const useFinanceStore = create((set, get) => ({
       await db.categories.clear();
       await db.categories.bulkAdd(data.map(c => ({ ...c, syncStatus: 'synced' })));
     } catch (error) {
-      console.error('Fetch categories error:', error);
+      console.error('Erro ao buscar categorias:', error);
       const localCategories = await db.categories.toArray();
       set({ categories: localCategories });
     }
   },
 
-  // TRANSACTIONS
   fetchTransactions: async (token, filters = {}) => {
     set({ loading: true });
     try {
@@ -78,7 +75,7 @@ export const useFinanceStore = create((set, get) => ({
       await db.transactions.clear();
       await db.transactions.bulkAdd(data.map(t => ({ ...t, syncStatus: 'synced' })));
     } catch (error) {
-      console.error('Fetch transactions error:', error);
+      console.error('Erro ao buscar transações:', error);
       const localTransactions = await db.transactions.orderBy('txDate').reverse().toArray();
       set({ transactions: localTransactions, loading: false });
     }
@@ -104,7 +101,7 @@ export const useFinanceStore = create((set, get) => ({
         return tempTransaction;
       }
     } catch (error) {
-      console.error('Create transaction error:', error);
+      console.error('Erro ao criar transação:', error);
       throw error;
     }
   },
@@ -117,28 +114,26 @@ export const useFinanceStore = create((set, get) => ({
       }));
       await get().fetchAccounts(token);
     } catch (error) {
-      console.error('Delete transaction error:', error);
+      console.error('Erro ao deletar transação:', error);
       throw error;
     }
   },
 
-  // SUMMARY
   fetchSummary: async (token) => {
     try {
       const { data } = await axios.get(`${API}/stats/summary`, getAuthHeader(token));
       set({ summary: data });
     } catch (error) {
-      console.error('Fetch summary error:', error);
+      console.error('Erro ao buscar resumo:', error);
     }
   },
 
-  // BUDGETS
   fetchBudgets: async (token) => {
     try {
       const { data } = await axios.get(`${API}/budgets`, getAuthHeader(token));
       set({ budgets: data });
     } catch (error) {
-      console.error('Fetch budgets error:', error);
+      console.error('Erro ao buscar orçamentos:', error);
     }
   },
 
@@ -148,7 +143,32 @@ export const useFinanceStore = create((set, get) => ({
       set((state) => ({ budgets: [...state.budgets, data] }));
       return data;
     } catch (error) {
-      console.error('Create budget error:', error);
+      console.error('Erro ao criar orçamento:', error);
+      throw error;
+    }
+  },
+
+  updateBudget: async (budgetId, budgetData, token) => {
+    try {
+      const { data } = await axios.put(`${API}/budgets/${budgetId}`, budgetData, getAuthHeader(token));
+      set((state) => ({
+        budgets: state.budgets.map(b => b.id === budgetId ? data : b)
+      }));
+      return data;
+    } catch (error) {
+      console.error('Erro ao atualizar orçamento:', error);
+      throw error;
+    }
+  },
+
+  deleteBudget: async (budgetId, token) => {
+    try {
+      await axios.delete(`${API}/budgets/${budgetId}`, getAuthHeader(token));
+      set((state) => ({
+        budgets: state.budgets.filter(b => b.id !== budgetId)
+      }));
+    } catch (error) {
+      console.error('Erro ao deletar orçamento:', error);
       throw error;
     }
   },
