@@ -32,7 +32,7 @@ O schema criará:
 ## 🎯 Como Usar o Aplicativo
 
 ### 1. Acesse o App
-Abra: https://budgetpwa-2.preview.emergentagent.com
+Abra: https://financer.preview.emergentagent.com
 
 ### 2. Criar Conta
 - Clique em **"Criar Conta"**
@@ -124,13 +124,13 @@ Abra: https://budgetpwa-2.preview.emergentagent.com
 ### Teste 1: Criar Conta e Login
 ```bash
 # O frontend estará disponível em:
-https://budgetpwa-2.preview.emergentagent.com
+https://financer.preview.emergentagent.com
 ```
 
 ### Teste 2: Backend API
 ```bash
 # Teste o backend diretamente:
-curl https://budgetpwa-2.preview.emergentagent.com/api/
+curl https://financer.preview.emergentagent.com/api/
 # Resposta esperada: {"message": "Personal Finance Manager API", "status": "online"}
 ```
 

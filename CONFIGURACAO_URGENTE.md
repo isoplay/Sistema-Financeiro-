@@ -43,10 +43,10 @@ Para facilitar testes, desabilite a verificação de email:
 
 1. Acesse: **Settings** → **Authentication** → **URL Configuration**
 2. Configure:
-   - **Site URL**: `https://budgetpwa-2.preview.emergentagent.com`
+   - **Site URL**: `https://financer.preview.emergentagent.com`
    - **Redirect URLs**: Adicione:
-     - `https://budgetpwa-2.preview.emergentagent.com`
-     - `https://budgetpwa-2.preview.emergentagent.com/**`
+     - `https://financer.preview.emergentagent.com`
+     - `https://financer.preview.emergentagent.com/**`
 
 ### Solução 4: Testar com Email Real
 
@@ -59,7 +59,7 @@ Após executar o schema SQL, tente criar conta com:
 
 ```bash
 # 1. Acesse o app
-open https://budgetpwa-2.preview.emergentagent.com
+open https://financer.preview.emergentagent.com
 
 # 2. Crie uma conta de teste
 # - Email: seu_email@gmail.com
