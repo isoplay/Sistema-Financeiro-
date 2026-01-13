@@ -31,16 +31,6 @@ function App() {
 
   useEffect(() => {
     initialize();
-    
-    serviceWorkerRegistration.register({
-      onSuccess: () => console.log('Service Worker registrado com sucesso'),
-      onUpdate: (registration) => {
-        console.log('Nova versão do service worker disponível');
-        if (registration && registration.waiting) {
-          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-        }
-      },
-    });
   }, []);
 
   if (loading) {
