@@ -269,6 +269,29 @@ async def create_budget(budget: BudgetCreate, user_id: str = Depends(get_current
         logger.error(f"Error creating budget: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.put("/budgets/{budget_id}", response_model=Budget)
+async def update_budget(budget_id: str, budget: BudgetCreate, user_id: str = Depends(get_current_user)):
+    try:
+        data = budget.model_dump()
+        response = supabase.table('budgets').update(data).eq('id', budget_id).eq('user_id', user_id).execute()
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Budget not found")
+        return response.data[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating budget: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.delete("/budgets/{budget_id}")
+async def delete_budget(budget_id: str, user_id: str = Depends(get_current_user)):
+    try:
+        response = supabase.table('budgets').delete().eq('id', budget_id).eq('user_id', user_id).execute()
+        return {"message": "Budget deleted successfully"}
+    except Exception as e:
+        logger.error(f"Error deleting budget: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # --- STATS & REPORTS ---
 
 @api_router.get("/stats/summary")
